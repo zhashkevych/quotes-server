@@ -1,0 +1,26 @@
+version: '3.4'
+
+services:
+  quotes-server:
+    build:
+      context: .
+    volumes:
+      - ./quotes.yml:/quotes.yml
+    working_dir: /root
+    ports:
+      - 9000:9000
+    environment:
+      - LISTEN_PORT=9000
+      - POW_DIFFICULTY=4
+      - QUOTES_FILEPATH=/quotes.yml
+    command: ["./server"]
+
+  quotes-client:
+    build:
+      context: .
+    depends_on:
+      - quotes-server
+    working_dir: /root
+    environment:
+      - SERVER_URL=quotes-server:9000
+    command: ["./client"]
