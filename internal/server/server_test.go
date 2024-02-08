@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,14 +13,14 @@ import (
 	"github.com/zhashkevych/quotes-server/internal/server/mocks"
 )
 
-type powMockBehavior func(m *mocks.MockProofOfWorkManager, powDifficulty, nonce int, challenge string)
+type powMockBehavior func(m *mocks.MockProofOfWorkManager)
 type quoterMockBehavior func(m *mocks.MockQuoter, response string)
 
 type testCase struct {
 	description      string
 	powDifficulty    int
 	challenge        string
-	nonce            int
+	nonce            string
 	expectedResponse string
 
 	powMockBehavior    powMockBehavior
@@ -34,11 +35,11 @@ func TestTCPServer_HandleConnection(t *testing.T) {
 			description:      "Success",
 			powDifficulty:    4,
 			challenge:        "123456789",
-			nonce:            42,
+			nonce:            "42",
 			expectedResponse: "The only true wisdom is in knowing you know nothing. - Socrates",
-			powMockBehavior: func(m *mocks.MockProofOfWorkManager, powDifficulty, nonce int, challenge string) {
-				m.EXPECT().GenerateChallenge(powDifficulty).Return(challenge, nil)
-				m.EXPECT().VerifySolution(challenge, nonce).Return(true, nil)
+			powMockBehavior: func(m *mocks.MockProofOfWorkManager) {
+				m.EXPECT().GenerateChallenge(4).Return("123456789", nil)
+				m.EXPECT().VerifySolution("123456789", 42).Return(true, nil)
 
 			},
 			quoterMockBehavior: func(m *mocks.MockQuoter, response string) {
@@ -50,12 +51,24 @@ func TestTCPServer_HandleConnection(t *testing.T) {
 			description:      "Verification failed",
 			powDifficulty:    4,
 			challenge:        "123456789",
-			nonce:            42,
+			nonce:            "42",
 			expectedResponse: "The only true wisdom is in knowing you know nothing. - Socrates",
-			powMockBehavior: func(m *mocks.MockProofOfWorkManager, powDifficulty, nonce int, challenge string) {
-				m.EXPECT().GenerateChallenge(powDifficulty).Return(challenge, nil)
-				m.EXPECT().VerifySolution(challenge, nonce).Return(false, nil)
+			powMockBehavior: func(m *mocks.MockProofOfWorkManager) {
+				m.EXPECT().GenerateChallenge(4).Return("123456789", nil)
+				m.EXPECT().VerifySolution("123456789", 42).Return(false, nil)
 
+			},
+			quoterMockBehavior:     func(m *mocks.MockQuoter, response string) {},
+			verificationShouldFail: true,
+		},
+		{
+			description:      "Request exceeds limit size",
+			powDifficulty:    4,
+			challenge:        "123456789",
+			nonce:            strings.Repeat("a", maxRequestSize+1),
+			expectedResponse: "Request data too large. Limit is 1024 bytes.\n",
+			powMockBehavior: func(m *mocks.MockProofOfWorkManager) {
+				m.EXPECT().GenerateChallenge(4).Return("123456789", nil)
 			},
 			quoterMockBehavior:     func(m *mocks.MockQuoter, response string) {},
 			verificationShouldFail: true,
@@ -71,7 +84,7 @@ func TestTCPServer_HandleConnection(t *testing.T) {
 			quoter := mocks.NewMockQuoter(c)
 			powManager := mocks.NewMockProofOfWorkManager(c)
 
-			tc.powMockBehavior(powManager, tc.powDifficulty, tc.nonce, tc.challenge)
+			tc.powMockBehavior(powManager)
 			tc.quoterMockBehavior(quoter, tc.expectedResponse)
 
 			// init server

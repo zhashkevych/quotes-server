@@ -20,6 +20,11 @@ const (
 	InternalServerErrorResponse = "Internal server error"
 )
 
+const (
+	timeout        = time.Second * 5
+	maxRequestSize = 1024 // 1KB
+)
+
 type Quoter interface {
 	GetRandomQuote() string
 }
@@ -99,6 +104,8 @@ func (s *TCPServer) ListenAndServe() error {
 func (s *TCPServer) handleConnection(conn net.Conn) {
 	startTime := time.Now()
 
+	conn.SetReadDeadline(time.Now().Add(timeout))
+
 	// store current connection for graceful shutdown logic
 	s.connMutex.Lock()
 	s.connections[conn] = struct{}{}
@@ -115,7 +122,9 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 	log.Infof("received request from %s", conn.RemoteAddr().String())
 
 	defer conn.Close()
+
 	reader := bufio.NewReader(conn)
+	reader = bufio.NewReaderSize(reader, maxRequestSize)
 
 	challenge, err := s.powManager.GenerateChallenge(s.powDifficulty)
 	if err != nil {
@@ -124,7 +133,16 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 	}
 	fmt.Fprintf(conn, "%s\n", challenge)
 
-	response, _ := reader.ReadString('\n')
+	response, err := reader.ReadString('\n')
+	if err != nil {
+		if err == bufio.ErrBufferFull {
+			fmt.Fprintf(conn, "Request data too large. Limit is %d bytes.\n", maxRequestSize)
+			return
+		}
+		fmt.Fprintf(conn, "%s\n", IncorrectSolutionResonse)
+		return
+	}
+
 	nonce, err := strconv.Atoi(strings.TrimSpace(response))
 	if err != nil {
 		fmt.Fprintf(conn, "%s\n", IncorrectSolutionResonse)
