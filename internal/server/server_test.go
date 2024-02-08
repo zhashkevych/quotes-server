@@ -90,8 +90,11 @@ func TestTCPServer_HandleConnection(t *testing.T) {
 			// init server
 			server := NewTCPServer(0, tc.powDifficulty, quoter, powManager)
 
-			go server.ListenAndServe()
-			time.Sleep(time.Second) // wait for the server initialization inside gorotuine
+			go func() {
+				err := server.ListenAndServe()
+				assert.NoError(t, err)
+			}()
+			time.Sleep(time.Second) //g wait for the server initialization inside gorotuine
 
 			conn, err := net.Dial("tcp", server.getAddr())
 			assert.NoError(t, err)

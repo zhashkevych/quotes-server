@@ -104,8 +104,6 @@ func (s *TCPServer) ListenAndServe() error {
 func (s *TCPServer) handleConnection(conn net.Conn) {
 	startTime := time.Now()
 
-	conn.SetReadDeadline(time.Now().Add(timeout))
-
 	// store current connection for graceful shutdown logic
 	s.connMutex.Lock()
 	s.connections[conn] = struct{}{}
@@ -119,6 +117,11 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 	}()
 
 	// process request
+	if err := conn.SetReadDeadline(time.Now().Add(timeout)); err != nil {
+		fmt.Fprintf(conn, "%s\n", InternalServerErrorResponse)
+		return
+	}
+
 	log.Infof("received request from %s", conn.RemoteAddr().String())
 
 	defer conn.Close()
