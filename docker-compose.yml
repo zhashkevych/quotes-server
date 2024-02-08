@@ -4,6 +4,7 @@ services:
   quotes-server:
     build:
       context: .
+      dockerfile: Dockerfile.server
     volumes:
       - ./quotes.yml:/quotes.yml
     working_dir: /root
@@ -13,16 +14,15 @@ services:
       - LISTEN_PORT=9000
       - POW_DIFFICULTY=4
       - QUOTES_FILEPATH=/quotes.yml
-      - LOG_LEVEL=debug #debug | error | info | warn
-    command: ["./server"]
+      - LOG_LEVEL=info #debug|error|info|warn
 
   quotes-client:
     build:
       context: .
+      dockerfile: Dockerfile.client
     depends_on:
       - quotes-server
     working_dir: /root
     environment:
       - SERVER_URL=quotes-server:9000
-      - LOG_LEVEL=debug #debug | error | info | warn
-    command: ["./client"]
+      - LOG_LEVEL=info #debug|error|info|warn
