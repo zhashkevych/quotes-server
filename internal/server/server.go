@@ -6,6 +6,8 @@ import (
 	"net"
 	"strconv"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 )
 
 //go:generate mockgen -source=server.go -destination=mocks/mock.go
@@ -48,12 +50,12 @@ func (s *TCPServer) ListenAndServe() error {
 
 	defer listener.Close()
 
-	fmt.Printf("starting tcp server at :%d\n", s.port)
+	log.Infof("starting tcp server at :%d", s.port)
 
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			fmt.Println("Error accepting: ", err.Error())
+			log.Error("error accepting:", err.Error())
 			continue
 		}
 		go s.handleConnection(conn)
@@ -61,7 +63,7 @@ func (s *TCPServer) ListenAndServe() error {
 }
 
 func (s *TCPServer) handleConnection(conn net.Conn) {
-	fmt.Printf("received request from %s\n", conn.RemoteAddr().String())
+	log.Debugf("received request from %s", conn.RemoteAddr().String())
 
 	defer conn.Close()
 	reader := bufio.NewReader(conn)
@@ -80,7 +82,7 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 		return
 	}
 
-	fmt.Printf("received solution:  %d\n", nonce)
+	log.Debugf("received solution:  %d", nonce)
 
 	isValid, err := s.powManager.VerifySolution(challenge, nonce)
 	if err != nil {
@@ -94,9 +96,4 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 	}
 
 	fmt.Fprintf(conn, "%s\n", s.quotesService.GetRandomQuote())
-}
-
-// used for testing
-func (s *TCPServer) getAddr() string {
-	return s.listener.Addr().String()
 }

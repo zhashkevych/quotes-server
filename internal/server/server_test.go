@@ -107,3 +107,8 @@ func TestTCPServer_HandleConnection(t *testing.T) {
 		})
 	}
 }
+
+// used for testing
+func (s *TCPServer) getAddr() string {
+	return s.listener.Addr().String()
+}

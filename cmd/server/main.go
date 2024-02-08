@@ -1,13 +1,14 @@
 package main
 
 import (
-	"log"
 	"os"
 	"strconv"
 
 	quotes "github.com/zhashkevych/quotes-server/internal/quotes/yml"
 	"github.com/zhashkevych/quotes-server/internal/server"
 	"github.com/zhashkevych/quotes-server/pkg/hashcash"
+
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -15,6 +16,12 @@ const (
 	defaultPowDifficulty = 4
 	defaultYMLFilePath   = "./quotes.yml"
 )
+
+func init() {
+	log.SetFormatter(&log.JSONFormatter{})
+	log.SetOutput(os.Stdout)
+	SetLogLevel()
+}
 
 func main() {
 	listenPort, _ := strconv.Atoi(os.Getenv("LISTEN_PORT"))
@@ -43,5 +50,20 @@ func main() {
 
 	if err := srv.ListenAndServe(); err != nil {
 		log.Fatal(err)
+	}
+}
+
+func SetLogLevel() {
+	switch os.Getenv("LOG_LEVEL") {
+	case "debug":
+		log.SetLevel(log.DebugLevel)
+	case "error":
+		log.SetLevel(log.ErrorLevel)
+	case "info":
+		log.SetLevel(log.InfoLevel)
+	case "warn":
+		log.SetLevel(log.WarnLevel)
+	default:
+		log.SetLevel(log.DebugLevel)
 	}
 }
